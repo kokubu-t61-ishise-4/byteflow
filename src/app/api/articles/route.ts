@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
   if (sources.includes("publickey")) fetchPromises.push(fetchPublickey());
 
   const results = await Promise.all(fetchPromises);
-  let articles = results.flat();
+  const articles = results.flat();
 
   // Sort by date (newest first)
   articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

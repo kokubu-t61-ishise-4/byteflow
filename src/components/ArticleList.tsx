@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Article } from "@/types/article";
 import ArticleCard from "./ArticleCard";
 import ArticleModal from "./ArticleModal";
@@ -16,9 +16,22 @@ interface ArticleListProps {
 const ALL_SOURCES = ["qiita", "zenn", "hatena", "devto", "publickey"];
 const STORAGE_KEY = "byteflow-custom-topics";
 
+function getInitialTopics(): Topic[] {
+  if (typeof window === "undefined") return DEFAULT_TOPICS;
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const customTopics = JSON.parse(saved);
+      return [...DEFAULT_TOPICS, ...customTopics];
+    } catch {
+      return DEFAULT_TOPICS;
+    }
+  }
+  return DEFAULT_TOPICS;
+}
+
 export default function ArticleList({ language, refreshTrigger, onRefreshStart, onRefreshEnd }: ArticleListProps) {
   const [articles, setArticles] = useState<Article[]>([]);
-  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtering, setFiltering] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -26,18 +39,10 @@ export default function ArticleList({ language, refreshTrigger, onRefreshStart, 
   const [selectedSources, setSelectedSources] = useState<string[]>(ALL_SOURCES);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [topics, setTopics] = useState<Topic[]>(DEFAULT_TOPICS);
+  const [contentFilteredIds, setContentFilteredIds] = useState<string[] | null>(null);
 
-  // Load custom topics from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const customTopics = JSON.parse(saved);
-        setTopics([...DEFAULT_TOPICS, ...customTopics]);
-      } catch {
-        // ignore
-      }
-    }
+    setTopics(getInitialTopics());
   }, []);
 
   const saveCustomTopics = (allTopics: Topic[]) => {
@@ -74,52 +79,41 @@ export default function ArticleList({ language, refreshTrigger, onRefreshStart, 
 
     const data: Article[] = await response.json();
     setArticles(data);
+    setContentFilteredIds(null);
     setLoading(false);
     onRefreshEnd();
   }, [selectedSources, onRefreshStart, onRefreshEnd]);
 
-  // Filter articles based on search keyword and topics (with content filtering)
+  // Filter by content when topics change
   useEffect(() => {
-    const filterArticles = async () => {
-      let filtered = [...articles];
-
-      // Filter by search keyword (title and tags)
-      if (searchKeyword) {
-        const keyword = searchKeyword.toLowerCase();
-        filtered = filtered.filter((a) =>
-          a.title.toLowerCase().includes(keyword) ||
-          a.tags.some((tag) => tag.toLowerCase().includes(keyword))
-        );
+    const filterByContent = async () => {
+      if (selectedTopics.length === 0) {
+        setContentFilteredIds(null);
+        return;
       }
 
-      // If topics selected, filter by title/tags first, then content
-      if (selectedTopics.length > 0) {
-        setFiltering(true);
+      const selectedTopicObjects = topics.filter((t) => selectedTopics.includes(t.id));
+      const allKeywords = selectedTopicObjects.flatMap((t) => t.keywords);
 
-        // Get all keywords from selected topics
-        const selectedTopicObjects = topics.filter((t) => selectedTopics.includes(t.id));
-
-        // First pass: filter by title and tags (AND condition - must match ALL topics)
-        const titleTagFiltered = filtered.filter((article) => {
+      // Get articles that don't match by title/tags
+      const titleTagMatchedIds = articles
+        .filter((article) => {
           const titleLower = article.title.toLowerCase();
           const tagsLower = article.tags.map((t) => t.toLowerCase());
-
-          // Must match at least one keyword from EACH selected topic (AND)
           return selectedTopicObjects.every((topic) =>
             topic.keywords.some((keyword) =>
               titleLower.includes(keyword.toLowerCase()) ||
               tagsLower.some((tag) => tag.includes(keyword.toLowerCase()))
             )
           );
-        });
+        })
+        .map((a) => a.id);
 
-        // Second pass: for remaining articles not in titleTagFiltered, check content
-        const remainingArticles = filtered.filter((a) => !titleTagFiltered.find((f) => f.id === a.id));
+      const remainingArticles = articles.filter((a) => !titleTagMatchedIds.includes(a.id));
 
-        if (remainingArticles.length > 0 && remainingArticles.length <= 30) {
-          // Gather all keywords that need to match (one from each topic)
-          const allKeywords = selectedTopicObjects.flatMap((t) => t.keywords);
-
+      if (remainingArticles.length > 0 && remainingArticles.length <= 30) {
+        setFiltering(true);
+        try {
           const filterResponse = await fetch("/api/filter", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -132,27 +126,45 @@ export default function ArticleList({ language, refreshTrigger, onRefreshStart, 
 
           if (filterResponse.ok) {
             const { matchedIds } = await filterResponse.json();
-            const contentMatched = remainingArticles.filter((a) => matchedIds.includes(a.id));
-            filtered = [...titleTagFiltered, ...contentMatched];
+            setContentFilteredIds([...titleTagMatchedIds, ...matchedIds]);
           } else {
-            filtered = titleTagFiltered;
+            setContentFilteredIds(titleTagMatchedIds);
           }
-        } else {
-          filtered = titleTagFiltered;
+        } catch {
+          setContentFilteredIds(titleTagMatchedIds);
         }
-
         setFiltering(false);
+      } else {
+        setContentFilteredIds(titleTagMatchedIds);
       }
-
-      setFilteredArticles(filtered);
     };
 
-    filterArticles();
-  }, [articles, searchKeyword, selectedTopics, topics]);
+    filterByContent();
+  }, [articles, selectedTopics, topics]);
 
   useEffect(() => {
     fetchArticles();
-  }, [refreshTrigger, selectedSources]);
+  }, [refreshTrigger, selectedSources, fetchArticles]);
+
+  const filteredArticles = useMemo(() => {
+    let filtered = [...articles];
+
+    // Filter by search keyword (title and tags)
+    if (searchKeyword) {
+      const keyword = searchKeyword.toLowerCase();
+      filtered = filtered.filter((a) =>
+        a.title.toLowerCase().includes(keyword) ||
+        a.tags.some((tag) => tag.toLowerCase().includes(keyword))
+      );
+    }
+
+    // Filter by topics (using pre-computed content filter results)
+    if (selectedTopics.length > 0 && contentFilteredIds !== null) {
+      filtered = filtered.filter((a) => contentFilteredIds.includes(a.id));
+    }
+
+    return filtered;
+  }, [articles, searchKeyword, selectedTopics, contentFilteredIds]);
 
   const handleSearch = (keyword: string) => {
     setSearchKeyword(keyword);
