@@ -1,4 +1,15 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+---
+title: ByteFlow
+emoji: 📰
+colorFrom: blue
+colorTo: gray
+sdk: docker
+pinned: false
+---
+
+# ByteFlow
+
+Tech article aggregator with AI-powered summaries.
 
 ## Getting Started
 
