@@ -1,47 +1,34 @@
----
-title: ByteFlow
-emoji: 📰
-colorFrom: blue
-colorTo: gray
-sdk: docker
-pinned: false
----
-
 # ByteFlow
 
-Tech article aggregator with AI-powered summaries.
+## 概要
+複数の技術情報サイトから最新記事を収集し、一覧表示するテック記事アグリゲーターです。
+AIによる記事要約機能と質問機能を備え、効率的に技術情報をキャッチアップできます。
+日本語・英語の切り替えに対応しています。
 
-## Getting Started
+## 主な機能
+- 記事の自動収集: Qiita、Zenn、はてなブックマーク、Dev.to、Publickeyから最新記事を取得
+- ソースフィルタリング: 取得元サイトを選択して表示記事を絞り込み
+- トピックフィルタリング: VS Code×AI、マネタイズ、無料ツール、AI開発、Web開発、インフラなどのプリセットトピックでフィルタ（AND条件）
+- カスタムトピック追加: 任意のキーワードでオリジナルのフィルタを作成・保存
+- キーワード検索: タイトルとタグで記事を検索
+- AI要約: 記事をクリックするとAIが内容を日本語/英語で要約（概要・ポイント・学ぶ意義）
+- AI質問機能: 要約表示後、記事に関する質問をAIに投げかけて回答を取得
+- 言語切り替え: 日本語・英語でUI・AI要約を切り替え
 
-First, run the development server:
+## 使い方
+1. ページを開くと各サイトから最新記事が自動取得される
+2. トピックやソースのフィルタ、キーワード検索で興味のある記事を絞り込み
+3. 記事カードをクリックしてモーダルを開く
+4. AIが自動で要約を生成（概要・ポイント・なぜ知っておくと良いか）
+5. 要約に対して追加の質問を入力し、AIに回答をもらう
+6. 「open source →」ボタンで元記事を開く
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 技術スタック
+- **フレームワーク**: Next.js 15 (React 19)
+- **言語**: TypeScript
+- **スタイリング**: Tailwind CSS 4
+- **AI**: Groq API (Llama 3.3 70B)
+- **ホスティング**: Hugging Face Spaces (Docker)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## URL
+https://huggingface.co/spaces/byteflow-user/byteflow
